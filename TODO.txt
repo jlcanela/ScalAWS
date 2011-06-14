@@ -1,0 +1,4 @@
+* S3 add files to bucket via Bucket +
+* S3 removed filed from bucket via Bucket - 
+* SDB add items to domain
+* convert tests to new AWS account
