@@ -3,10 +3,13 @@ package scalaws.s3
 //joda time
 import org.joda.time.DateTime
 
+//java
+import java.io.InputStream
+
 //aws
-import com.amazonaws.services.s3.model.{Bucket => AWSBucket, Owner => AWSOwner, S3Object => AWSS3Object, S3ObjectSummary => AWSS3ObjectSummary}
+import com.amazonaws.services.s3.model.{Bucket => AWSBucket, Owner => AWSOwner, S3Object => AWSS3Object, S3ObjectSummary => AWSS3ObjectSummary, ObjectMetadata => AWSObjectMetadata}
 import com.amazonaws.services.s3.model.{Region => AWSRegion, CannedAccessControlList => AWSCannedAccessControlList, CreateBucketRequest => AWSCreateBucketRequest}
-import com.amazonaws.services.s3.model.{DeleteBucketRequest => AWSDeleteBucketRequest}
+import com.amazonaws.services.s3.model.{DeleteBucketRequest => AWSDeleteBucketRequest, PutObjectResult => AWSPutObjectResult, PutObjectRequest => AWSPutObjectRequest}
 import com.amazonaws.services.s3.AmazonS3Client
 import AWSRegion._
 import AWSCannedAccessControlList.{PublicReadWrite => AWSPublicReadWrite, PublicRead => AWSPublicRead, Private => AWSPrivate, LogDeliveryWrite => AWSLogDeliveryWrite, BucketOwnerRead => AWSBucketOwnerRead, AuthenticatedRead => AWSAuthenticatedRead, BucketOwnerFullControl => AWSBucketOwnerFullControl}
@@ -76,12 +79,62 @@ object ImplicitConversions{
   
   implicit def deleteBucketRequestToAWSDeleteBucketRequest(deleteBucketRequest: DeleteBucketRequest): AWSDeleteBucketRequest = new AWSDeleteBucketRequest(deleteBucketRequest.bucketName)
   implicit def awsDeleteBucketRequestToDeleteBucketRequest(awsDeleteBucketRequest: AWSDeleteBucketRequest): DeleteBucketRequest = DeleteBucketRequest(awsDeleteBucketRequest.getBucketName)
+  implicit def awsPutObjectResultToPutObjectResult(awsPutObjectResult: AWSPutObjectResult): PutObjectResult = {
+    val versionId = if(awsPutObjectResult.getVersionId != null) Some(awsPutObjectResult.getVersionId) else None
+    PutObjectResult(awsPutObjectResult.getETag, versionId)
+  }
+  
+  implicit def putObjectResultToAWSPutObjectResult(putObjectResult: PutObjectResult): AWSPutObjectResult = {
+    val awsPutObjectResult = new AWSPutObjectResult
+    awsPutObjectResult.setETag(putObjectResult.eTag)
+    awsPutObjectResult.setVersionId(putObjectResult.versionId.getOrElse(null))
+    awsPutObjectResult
+  }
+  
+  implicit def awsS3ObjectToS3Object(awsS3Object: AWSS3Object): S3Object = S3Object(bucketName = awsS3Object.getBucketName, key = awsS3Object.getKey, objectContent = awsS3Object.getObjectContent, objectMetadata = awsS3Object.getObjectMetadata)
+  
+  implicit def awsObjectMetadata(awsObjectMetadata: AWSObjectMetadata): ObjectMetadata = {
+    val cacheControl = if(awsObjectMetadata.getCacheControl != null) Some(awsObjectMetadata.getCacheControl) else None
+    val contentDisposition = if(awsObjectMetadata.getContentDisposition != null) Some(awsObjectMetadata.getContentDisposition) else None
+    val contentEncoding = if(awsObjectMetadata.getContentEncoding != null) Some(awsObjectMetadata.getContentEncoding) else None
+    val versionId = if(awsObjectMetadata.getVersionId != null) Some(awsObjectMetadata.getVersionId) else None
+    val iterator = awsObjectMetadata.getUserMetadata.keySet.iterator
+    var userMetadataMap = Map[String, String]()
+    while(iterator.hasNext){
+      val key = iterator.next
+      userMetadataMap = userMetadataMap + (key -> awsObjectMetadata.getUserMetadata.get(key))
+    }
+    ObjectMetadata(
+      contentLength = awsObjectMetadata.getContentLength,
+      contentMD5 = awsObjectMetadata.getContentMD5,
+      contentType = awsObjectMetadata.getContentType,
+      eTag = awsObjectMetadata.getETag,
+      lastModified = new DateTime(awsObjectMetadata.getLastModified),
+      userMetadata = userMetadataMap,
+      cacheControl = cacheControl,
+      contentDisposition = contentDisposition,
+      contentEncoding = contentEncoding,
+      versionId = versionId
+    )
+  }
+  
+  /****** Currently there is no setObjectMetaadata method in the AWS Sdk, so commenting this out
+    implicit def s3ObjectToAWSS3Object(s3Object: S3Object): AWSS3Object = {
+    val awsS3Object = new AWSS3Object
+    awsS3Object.setBucketName(s3Object.bucketName)
+    awsS3Object.setKey(s3Object.key)
+    awsS3Object.setObjectMetadata(s3Object.metadata)
+    awsS3Object.setObjectContent(s3Object.setObjectContent)
+  }*/
 }
 
+case class ObjectMetadata(contentLength: Long, contentMD5: String, contentType: String, eTag: String, lastModified: DateTime, userMetadata: Map[String, String] = Map[String, String](), cacheControl: Option[String] = None, contentDisposition: Option[String] = None, contentEncoding: Option[String] = None, versionId: Option[String] = None)
 case class S3ObjectSummary(bucketName: String, eTag: String, key: String, lastModified: DateTime, owner: Owner, size: Long, storageClass: String)
+case class S3Object(bucketName: String, key: String, objectContent: InputStream, objectMetadata: ObjectMetadata)
 case class Owner(id: String, displayName: String)
 case class CreateBucketRequest(bucketName: String, region: Region = USStandard, cannedACL: CannedAccessControlList = Private)
 case class DeleteBucketRequest(bucketName: String)
+case class PutObjectResult(eTag: String, versionId: Option[String] = None)
 
 sealed trait Region
 case object Singapore extends Region

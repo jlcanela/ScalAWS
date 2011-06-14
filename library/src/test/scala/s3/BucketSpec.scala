@@ -33,7 +33,21 @@ class BucketSpec extends Specification{
       
       S3 - bucketName
       S3.find(_.name == bucketName).isDefined must be equalTo(false)
-      
+    }
+    
+    "put an object in a bucket retrieve it and delete it" in {
+      val bucketName = "thisisatestbucket-1234554321555"
+      val bucket = S3 + bucketName
+      val file = new java.io.File("library/src/test/resources/sample_file.txt")
+      bucket + file
+      bucket.exists(file.getName) must be equalTo(true)
+      val obj = bucket("sample_file.txt")
+      scala.io.Source.fromInputStream(obj.objectContent).mkString must be equalTo("this is a test file")
+      obj.objectContent.close
+      bucket - file.getName
+      bucket.exists(file.getName) must be equalTo(false)
+      S3 - bucket
+      S3.find(_.name == bucketName).isDefined must be equalTo(false)
     }
     
   }
