@@ -32,12 +32,34 @@ class SimpleDBSpec extends Specification{
       domain("http://webtretho.com").size must be greaterThan(0)
     }
     
+    "create/delete a domain" in {
+      import SimpleDB._
+      SimpleDB + "thisisatestdomain"
+      val domain = Domain("thisisatestdomain")
+      SimpleDB - domain
+      true
+    }
+    
+    "put some attributes with the + sign" in {
+      import SimpleDB._
+      SimpleDB + "thisisanothertestdomain"
+      val testMap = Map("one" -> "1", "two" -> "2")
+      val domain = Domain("thisisanothertestdomain")
+      domain + ("testId", testMap)
+      Thread.sleep(10000)
+      val attributes = domain("testId")
+      SimpleDB + "thisisanothertestdomain"
+      attributes.size must be equalTo(2)
+      val map = (for(Attribute(name, value, _, _) <- attributes) yield (name -> value)).foldLeft(Map[String, String]())(_ + _)
+      map must be equalTo(testMap)
+    }
+    
     "select across multiple Domains" in new executorShutdown{
       import SimpleDB._
       val domains = SimpleDB.filter(_.name.startsWith("one"))
       SimpleDB("http://infoq.com", domains).size must not be equalTo(Nil)
     }
-    
+        
   }
   
 }

@@ -44,6 +44,22 @@ trait SimpleDBComponent{ self: ScalAWS =>
       }
       futures.toList.map(_.get).foldLeft(List[Attribute]())(_ ::: _)
     }
+  
+    
+    /**
+     * Create a domain
+    **/
+    def +(name: String): Unit = simpleDBClient.createDomain(CreateDomainRequest(name))
+    
+    /**
+     * Deletes a domain
+    **/
+    def -(name: String): Unit = simpleDBClient.deleteDomain(DeleteDomainRequest(name))
+    
+    /**
+     * Deletes a domain
+    **/
+    def -(domain: Domain): Unit = this - domain.name
     
     /**
      * Returns the domain at the given index

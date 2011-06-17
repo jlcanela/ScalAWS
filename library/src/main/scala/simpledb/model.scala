@@ -1,25 +1,13 @@
 package scalaws.simpledb
 
 //aws
-import com.amazonaws.services.simpledb.model.{DomainMetadataRequest, SelectRequest => AWSSelectRequest, SelectResult => AWSSelectResult, Item => AWSItem, Attribute => AWSAttribute}
-import com.amazonaws.services.simpledb.model.{GetAttributesRequest => AWSGetAttributesRequest, GetAttributesResult => AWSGetAttributesResult}
+import com.amazonaws.services.simpledb.model.{DomainMetadataRequest, SelectRequest => AWSSelectRequest, SelectResult => AWSSelectResult, Item => AWSItem, Attribute => AWSAttribute,  ReplaceableAttribute => AWSReplaceableAttribute}
+import com.amazonaws.services.simpledb.model.{CreateDomainRequest => AWSCreateDomainRequest, DeleteDomainRequest => AWSDeleteDomainRequest}
+import com.amazonaws.services.simpledb.model.{GetAttributesRequest => AWSGetAttributesRequest, GetAttributesResult => AWSGetAttributesResult, PutAttributesRequest => AWSPutAttributesRequest, UpdateCondition => AWSUpdateCondition}
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient
 
 //java
 import java.util.{ArrayList, List => JList}
-
-case class Domain(name: String)(implicit simpleDBClient: AmazonSimpleDBClient){
-  import Implicits._
-  def metadata: DomainMetadata = {
-    val result = simpleDBClient.domainMetadata(new DomainMetadataRequest(name))
-    DomainMetadata(result.getAttributeNameCount.intValue, result.getAttributeNamesSizeBytes.longValue, result.getItemCount.intValue, result.getItemNamesSizeBytes.longValue, result.getTimestamp.intValue)
-  }
-  
-  def apply(itemName: String, attributeNames: List[String] = Nil): List[Attribute] = {
-    val result = simpleDBClient.getAttributes(GetAttributesRequest(name, itemName, attributeNames))
-    result.attributes
-  }
-}
 
 case class DomainMetadata(attributeNameCount: Int, attributeNamesSizeBytes: Long, itemCount: Int, itemNamesSizeBytes: Long, timestamp: Integer)
 case class SelectRequest(selectExpression: String, consistentRead: Option[Boolean] = None, nextToken: Option[String] = None)
@@ -28,8 +16,50 @@ case class Item(name: String, attributes: List[Attribute], alternateNameEncoding
 case class Attribute(name: String, value: String, alternateNameEncoding: Option[String] = None, alternateValueEncoding: Option[String] = None)
 case class GetAttributesRequest(domainName: String, itemName: String, attributeNames: List[String] = Nil, consistentRead: Option[Boolean] = None)
 case class GetAttributesResult(attributes: List[Attribute])
+case class PutAttributesRequest(domainName: String, itemName: String, attributes: List[ReplaceableAttribute], expected: Option[UpdateCondition] = None)
+case class ReplaceableAttribute(name: String, value: String, replace: Boolean)
+case class UpdateCondition(name: String, value: String, exists: Boolean)
+case class CreateDomainRequest(domainName: String)
+case class DeleteDomainRequest(domainName: String)
 
 object Implicits{
+  
+  implicit def deleteDomainRequestToAWSDeleteDomainRequest(ddr: DeleteDomainRequest): AWSDeleteDomainRequest = new AWSDeleteDomainRequest(ddr.domainName)
+  implicit def awsDeleteDomainRequestToDeleteDomainRequest(awsDdf: AWSDeleteDomainRequest): DeleteDomainRequest = DeleteDomainRequest(awsDdf.getDomainName)
+  implicit def createDomainRequestToAWSCreateDomainRequest(cdr: CreateDomainRequest): AWSCreateDomainRequest = new AWSCreateDomainRequest(cdr.domainName)
+  implicit def awsCreateDomainRequestToCreateDomainRequest(awsCdf: AWSCreateDomainRequest): CreateDomainRequest = CreateDomainRequest(awsCdf.getDomainName)
+  
+  implicit def awsUpdateConditionToUpdateCondition(awsUpdateCondition: AWSUpdateCondition): UpdateCondition = {
+    UpdateCondition(awsUpdateCondition.getName, awsUpdateCondition.getValue, awsUpdateCondition.getExists.booleanValue)
+  }
+  
+  implicit def updateConditionToAWSUpdateCondition(updateCondition: UpdateCondition): AWSUpdateCondition = {
+    new AWSUpdateCondition(updateCondition.name, updateCondition.value, updateCondition.exists)
+  }
+  
+  implicit def replaceableAttributeToAWSReplaceableAttribute(replaceableAttribute: ReplaceableAttribute): AWSReplaceableAttribute = {
+    new AWSReplaceableAttribute(replaceableAttribute.name, replaceableAttribute.value, replaceableAttribute.replace)
+  }
+  
+  implicit def awsReplaceableAttributeToReplaceableAttribute(awsAttr: AWSReplaceableAttribute): ReplaceableAttribute = {
+    val replace = if(awsAttr.getReplace != null) awsAttr.getReplace.booleanValue else false
+    ReplaceableAttribute(awsAttr.getName, awsAttr.value, replace)
+  }
+  
+  implicit def putAttributesRequestToAWSPutAttributesRequest(putRequest: PutAttributesRequest): AWSPutAttributesRequest = {
+    val attributes = new ArrayList[AWSReplaceableAttribute]()
+    for(a <- putRequest.attributes) attributes.add(a)
+    val awsReq = new AWSPutAttributesRequest(putRequest.domainName, putRequest.itemName, attributes)
+    if(putRequest.expected.isDefined) awsReq.setExpected(putRequest.expected.get)
+    awsReq    
+  }
+  
+  implicit def awsPutAttributesRequestToPutAttributesRequest(awsRequest: AWSPutAttributesRequest): PutAttributesRequest = {
+    val iterator = awsRequest.getAttributes.iterator
+    var attributes: List[ReplaceableAttribute] = Nil
+    while(iterator.hasNext) attributes = iterator.next :: attributes
+    PutAttributesRequest(awsRequest.getDomainName, awsRequest.getItemName, attributes)
+  }
   
   implicit def awsSelectResultToSelectResult(awsSelectResult: AWSSelectResult): SelectResult = {
     val nextToken = if(awsSelectResult.getNextToken != null) Some(awsSelectResult.getNextToken) else None
