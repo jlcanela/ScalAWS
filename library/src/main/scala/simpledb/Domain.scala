@@ -2,7 +2,7 @@ package scalaws.simpledb
 
 //aws
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient
-import com.amazonaws.services.simpledb.model.{DomainMetadataRequest => AWSDomainMetadataRequest}
+import com.amazonaws.services.simpledb.model.{DeleteAttributesRequest, DomainMetadataRequest => AWSDomainMetadataRequest}
 
 case class Domain(name: String)(implicit simpleDBClient: AmazonSimpleDBClient){
   import Implicits._
@@ -31,4 +31,9 @@ case class Domain(name: String)(implicit simpleDBClient: AmazonSimpleDBClient){
     val attrs = for((name, value) <- attributes.iterator.toList) yield ReplaceableAttribute(name, value, true)
     simpleDBClient.putAttributes(PutAttributesRequest(name, itemName, attrs))
   }
+
+  /**
+   * Removes an item from this SimpleDB domain
+   */
+  def -(itemName: String): Unit = simpleDBClient.deleteAttributes(new DeleteAttributesRequest(name, itemName))
 }

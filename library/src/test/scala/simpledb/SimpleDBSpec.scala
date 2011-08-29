@@ -22,14 +22,14 @@ class SimpleDBSpec extends Specification{
     }
     
     "select some records from a Domain" in {
-      val SelectResult(items, _) = SimpleDB.select("select * from oneoffratings_0")
+      val SelectResult(items, _) = SimpleDB.select("select * from cuiscores_0")
       items.size must be greaterThan(1)
     }
     
     "select attributes from a Domain" in {
       import SimpleDB._
-      val domain = Domain("oneoffratings_0")
-      domain("http://webtretho.com").size must be greaterThan(0)
+      val domain = Domain("cuiscores_0")
+      domain("http://edinburgh-festivals.com").size must be greaterThan(0)
     }
     
     "create/delete a domain" in {
@@ -53,7 +53,26 @@ class SimpleDBSpec extends Specification{
       val map = (for(Attribute(name, value, _, _) <- attributes) yield (name -> value)).foldLeft(Map[String, String]())(_ + _)
       map must be equalTo(testMap)
     }
-    
+
+    "delete an item from a domain" in {
+      import SimpleDB._
+      SimpleDB + "thisisanothertestdomainagain"
+      val testMap = Map("one" -> "1", "two" -> "2")
+      val domain = Domain("thisisanothertestdomainagain")
+      domain + ("testId", testMap)
+      Thread.sleep(10000)
+      val attributes = domain("testId")
+      SimpleDB + "thisisanothertestdomainagain"
+      attributes.size must be equalTo(2)
+      val map = (for(Attribute(name, value, _, _) <- attributes) yield (name -> value)).foldLeft(Map[String, String]())(_ + _)
+      map must be equalTo(testMap)
+
+      domain - "testId"
+      Thread.sleep(10000)
+      val attributesGone = domain("testId")
+      attributesGone must be equalTo(Nil)
+    }
+
     "select across multiple Domains" in new executorShutdown{
       import SimpleDB._
       val domains = SimpleDB.filter(_.name.startsWith("one"))
