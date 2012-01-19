@@ -5,7 +5,7 @@ object ScalaAWSBuild extends Build{
   override lazy val settings = super.settings ++ (shellPrompt in ThisBuild := { s => Project.extract(s).currentProject.id + "> " })
   
   val awsVersion = "1.2.1"
-  val specs2Version = "1.4"
+  val specs2Version = "1.7.1"
   val jodaTimeVersion = "1.6.2"
   
   lazy val project = Project("library", file("library"))

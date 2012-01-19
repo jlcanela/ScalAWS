@@ -13,7 +13,7 @@ class SimpleDBSpec extends Specification{
     object Tmp extends ScalAWS with SimpleDBComponent
     import Tmp._
     
-    trait executorShutdown extends Scope with After {
+    trait executorShutdown extends Scope with org.specs2.specification.After {
       def after = executorService.shutdown
     }
     
